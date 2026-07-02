@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roll Color Dice & Verify</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        
+        body {
+            background-image: url('https://cdn.discordapp.com/attachments/1507046774161014794/1520370981984538715/1378545.jpg?ex=6a483391&is=6a46e211&hm=2e152d2ad5db3bc1c5db97d27e6886bacdf6306299885a19fb4125e448829654&');
+            background-size: cover; background-position: center; background-attachment: fixed;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px;
+        }
+
+        .top-nav { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; width: 100%; max-width: 800px; }
+        .nav-btn { background: white; color: #1a7fc9; border: 1px solid #ccc; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+
+        .container { width: 100%; max-width: 700px; }
+        
+        .panel { background-color: #3b9cf2; border: 4px solid #1a7fc9; border-radius: 15px; padding: 25px; color: white; box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+        .main-panel { text-align: center; position: relative; }
+        
+        /* Екран за изчакване "LET'S ROLL!" (Прикрива съдържанието по време на хвърляне) */
+        .lets-roll-overlay {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 40px 0;
+        }
+        .lets-roll-title {
+            font-size: 2.2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 2px 2px 0px #1a7fc9, -2px -2px 0px #1a7fc9, 2px -2px 0px #1a7fc9, -2px 2px 0px #1a7fc9;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+        .waiting-dice-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .waiting-dice {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .waiting-dot {
+            width: 14px;
+            height: 14px;
+            background-color: #ccc;
+            border-radius: 50%;
+        }
+
+        /* Нормалното съдържание на играта */
+        .game-content { display: block; }
+        
+        .main-title { font-size: 2rem; font-weight: 900; text-transform: uppercase; margin-bottom: 20px; text-shadow: 2px 2px #1a7fc9; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }
+        .controls select { background-color: white; color: #333; border: 2px solid #1a7fc9; border-radius: 5px; padding: 8px 15px; font-weight: bold; outline: none; }
+        
+        /* Главни цветни зарове с дебела бяла рамка по подобие на втория скрийншот */
+        .dice-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+        .dice { width: 80px; height: 80px; border-radius: 12px; border: 4px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: transform 0.15s ease; }
+        .dot { width: 14px; height: 14px; background-color: white; border-radius: 50%; }
+        
+        .game-id { font-size: 0.85rem; margin-bottom: 25px; opacity: 0.9; }
+        .game-id span { text-decoration: underline; cursor: pointer; font-weight: bold; color: #ffd700; }
+        
+        .roll-btn { background-color: #ffd700; color: #333; border: none; border-radius: 8px; padding: 15px 40px; font-size: 1.4rem; font-weight: 900; text-transform: uppercase; cursor: pointer; box-shadow: 0 5px 0 #ccac00; width: 100%; max-width: 400px; margin-bottom: 10px; }
+        .roll-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #ccac00; }
+
+        /* --- СЕКЦИЯ VERIFY --- */
+        .verify-section { display: none; margin-top: 30px; border-top: 3px dashed #1a7fc9; padding-top: 25px; text-align: center; }
+        .verify-title { font-size: 1.6rem; font-weight: 900; margin-bottom: 15px; letter-spacing: 1px; }
+        .input-field { width: 100%; max-width: 300px; padding: 10px; font-size: 1.1rem; border: 2px solid #1a7fc9; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 10px; outline: none; }
+        
+        .refresh-btn { background-color: #ffd700; color: #333; border: none; border-radius: 5px; width: 100%; max-width: 300px; padding: 10px; font-size: 1.1rem; font-weight: 900; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 #ccac00; margin-bottom: 20px; }
+        .refresh-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #ccac00; }
+
+        .warning-box { background-color: white; color: red; border-radius: 5px; padding: 15px; font-size: 0.8rem; font-weight: bold; line-height: 1.4; max-width: 500px; margin: 0 auto 20px auto; text-align: center; }
+
+        /* Зарове в историята */
+        .history-box { background: rgba(255, 255, 255, 0.15); border: 2px solid #1a7fc9; color: white; border-radius: 10px; padding: 15px; max-width: 500px; margin: 0 auto; text-align: left; }
+        .history-box h3 { text-align: center; margin-bottom: 15px; font-size: 1.1rem; border-bottom: 2px solid white; padding-bottom: 5px; text-transform: uppercase; }
+        .history-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.3); }
+        .history-row:last-child { border-bottom: none; }
+        .roll-num { font-weight: bold; font-size: 1rem; text-shadow: 1px 1px #1a7fc9; }
+        
+        .colors-preview { display: flex; gap: 8px; }
+        
+        .history-dice { 
+            width: 45px; 
+            height: 45px; 
+            border-radius: 8px; 
+            border: 3px solid white; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2); 
+        }
+        .history-dot { width: 9px; height: 9px; background-color: white; border-radius: 50%; }
+        .no-data { text-align: center; color: #fff; font-style: italic; font-size: 0.9rem; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="top-nav">
+    <span class="nav-btn">🔍 Discover more</span>
+    <span class="nav-btn">🎲 Custom dice sets</span>
+    <span class="nav-btn">🧩 board games</span>
+</div>
+
+<div class="container">
+    <div class="panel main-panel">
+        
+        <div class="lets-roll-overlay" id="letsRollOverlay">
+            <div class="lets-roll-title">Let's Roll!</div>
+            <div class="waiting-dice-container">
+                <div class="waiting-dice"><div class="waiting-dot"></div></div>
+                <div class="waiting-dice"><div class="waiting-dot"></div></div>
+                <div class="waiting-dice"><div class="waiting-dot"></div></div>
+                <div class="waiting-dice"><div class="waiting-dot"></div></div>
+            </div>
+        </div>
+
+        <div class="game-content" id="gameContent">
+            <h1 class="main-title">Roll Color Dice</h1>
+            
+            <div class="controls">
+                <select><option>4 DICE</option></select>
+                <select><option>COLOR DICE</option></select>
+                <select><option>SELECT THEME</option></select>
+            </div>
+
+            <div class="dice-container" id="diceContainer">
+                <div class="dice" style="background-color: #ff0000;"><div class="dot"></div></div>
+                <div class="dice" style="background-color: #ff9900;"><div class="dot"></div></div>
+                <div class="dice" style="background-color: #ffcc00;"><div class="dot"></div></div>
+                <div class="dice" style="background-color: #009933;"><div class="dot"></div></div>
+            </div>
+
+            <div class="game-id">
+                Game ID: <strong id="gameIdDisplay">Зареждане...</strong> - <span onclick="toggleVerifySection()">Verify</span>
+            </div>
+        </div>
+
+        <button class="roll-btn" onclick="startRollProcess()">Roll Again !</button>
+
+        <div class="verify-section" id="verifySection">
+            <div class="verify-title">🛡️ VERIFY</div>
+            <div>
+                <label style="font-size: 0.85rem; font-weight: bold; display: block; margin-bottom: 5px;">🎲 GAME ID:</label>
+                <input type="text" id="idInput" class="input-field" value="">
+            </div>
+            <button class="refresh-btn" onclick="loadHistory()">REFRESH</button>
+
+            <div class="warning-box">
+                You cannot verify your own game ID any longer.<br><br>
+                Please ask your spectators to verify your game ID on their own devices.<br><br>
+                This is for security purposes.
+            </div>
+
+            <div class="history-box">
+                <h3>📜 History of All Rolls</h3>
+                <div id="historyContainer">
+                    <p class="no-data">Все още няма хронология на хвърлянията.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const colors = ['#ff0000', '#ff9900', '#ffcc00', '#009933', '#0066ff', '#9900cc'];
+    let currentGameId = ""; 
+    let rollHistory = []; 
+
+    function generateRandomId(length) {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return result;
+    }
+
+    window.onload = function() {
+        currentGameId = generateRandomId(10);
+        document.getElementById('gameIdDisplay').innerText = currentGameId;
+        document.getElementById('idInput').value = currentGameId;
+    };
+
+    // Процесът, който скрива играта и показва "LET'S ROLL!" преди разкриването на цветовете
+    function startRollProcess() {
+        const gameContent = document.getElementById('gameContent');
+        const letsRollOverlay = document.getElementById('letsRollOverlay');
+        
+        // 1. Скриваме текущите зарове и контроли и показваме белия екран за изчакване
+        gameContent.style.display = 'none';
+        letsRollOverlay.style.display = 'flex';
+
+        // 2. Изчакваме 1 секунда (1000 милисекунди) и тогава показваме резултата
+        setTimeout(() => {
+            letsRollOverlay.style.display = 'none';
+            gameContent.style.display = 'block';
+            
+            executeDiceRoll(); // Извиква реалното оцветяване на заровете
+        }, 1000);
+    }
+
+    // Реалното хвърляне и оцветяване
+    function executeDiceRoll() {
+        const container = document.getElementById('diceContainer');
+        const diceElements = container.getElementsByClassName('dice');
+        let currentColors = [];
+        
+        for (let dice of diceElements) {
+            dice.style.transform = 'scale(0.7) rotate(20deg)';
+            
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            dice.style.backgroundColor = randomColor;
+            currentColors.push(randomColor);
+            
+            setTimeout(() => { dice.style.transform = 'scale(1) rotate(0deg)'; }, 150);
+        }
+
+        rollHistory.unshift(currentColors);
+
+        if(document.getElementById('verifySection').style.display === 'block') {
+            loadHistory();
+        }
+    }
+
+    function toggleVerifySection() {
+        const section = document.getElementById('verifySection');
+        if (section.style.display === 'block') {
+            section.style.display = 'none';
+        } else {
+            section.style.display = 'block';
+            loadHistory();
+        }
+    }
+
+    function loadHistory() {
+        const inputId = document.getElementById('idInput').value.trim();
+        const container = document.getElementById('historyContainer');
+        container.innerHTML = '';
+
+        if(inputId !== currentGameId || rollHistory.length === 0) {
+            container.innerHTML = '<p class="no-data">Няма намерена история за това ID.</p>';
+            return;
+        }
+
+        rollHistory.forEach((roll, index) => {
+            const row = document.createElement('div');
+            row.className = 'history-row';
+
+            const rollNum = document.createElement('span');
+            rollNum.className = 'roll-num';
+            rollNum.innerText = `Roll #${rollHistory.length - index}:`;
+
+            const preview = document.createElement('div');
+            preview.className = 'colors-preview';
+
+            roll.forEach(color => {
+                const histDice = document.createElement('div');
+                histDice.className = 'history-dice';
+                histDice.style.backgroundColor = color;
+                
+                const dot = document.createElement('div');
+                dot.className = 'history-dot';
+                
+                histDice.appendChild(dot);
+                preview.appendChild(histDice);
+            });
+
+            row.appendChild(rollNum);
+            row.appendChild(preview);
+            container.appendChild(row);
+        });
+    }
+</script>
+
+</body>
+</html>
